@@ -5,7 +5,6 @@ import { DetectedObjects } from "./DetectedObjects";
 import { Header } from "./Header";
 import { Position } from "./Position";
 import { Orientation } from "./Orientation";
-import { Dimensions } from "./Dimensions";
 import { ExtensionContext } from "@foxglove/studio";
 
 type Color = {
@@ -16,14 +15,14 @@ type Color = {
 };
 
 const colorMap: Record<number, Color> = {
-  0: { r: 1.0, g: 1.0, b: 1.0, a: 0.5 }, // UNKNOWN // white // hex: #FFFFFF
-  1: { r: 1.0, g: 0.0, b: 0.0, a: 0.5 }, // CAR // red // hex: #FF0000
-  2: { r: 1.0, g: 0.5, b: 0.5, a: 0.5 }, // BICYCLE // pink // hex: #FF8080
-  3: { r: 0.0, g: 0.5, b: 1.0, a: 0.5 }, // BUS // blue // hex: #0080FF
-  4: { r: 0.0, g: 0.5, b: 1.0, a: 0.5 }, // TRUCK // blue // hex: #0080FF
-  5: { r: 1.0, g: 0.5, b: 0.5, a: 0.5 }, // CYCLIST // pink // hex: #FF8080
-  6: { r: 1.0, g: 1.0, b: 0.5, a: 0.5 }, // MOTORCYCLE // yellow // hex: #FFFF80
-  7: { r: 0.75, g: 1.0, b: 0.25, a: 0.5 }, // PEDESTRIAN // green // hex: #BFFF40
+  0: { r: 1.0, g: 1.0, b: 1.0, a: 0.4 }, // UNKNOWN // white // hex: #FFFFFF
+  1: { r: 1.0, g: 0.0, b: 0.0, a: 0.4 }, // CAR // red // hex: #FF0000
+  2: { r: 1.0, g: 0.5, b: 0.5, a: 0.4 }, // BICYCLE // pink // hex: #FF8080
+  3: { r: 0.0, g: 0.5, b: 1.0, a: 0.4 }, // BUS // blue // hex: #0080FF
+  4: { r: 0.0, g: 0.5, b: 1.0, a: 0.4 }, // TRUCK // blue // hex: #0080FF
+  5: { r: 1.0, g: 0.5, b: 0.5, a: 0.4 }, // CYCLIST // pink // hex: #FF8080
+  6: { r: 1.0, g: 1.0, b: 0.5, a: 0.4 }, // MOTORCYCLE // yellow // hex: #FFFF80
+  7: { r: 0.75, g: 1.0, b: 0.25, a: 0.4 }, // PEDESTRIAN // green // hex: #BFFF40
 };
 
 enum Classification {
@@ -61,17 +60,16 @@ function createSceneUpdateMessage(header: Header, spheres: SpherePrimitive[], cu
   };
 }
 
-function createCubePrimitive(x: number, y:number, position: Position, orientation: Orientation, color: Color, dimensions: Dimensions): CubePrimitive
+function createCubePrimitive(x: number, y:number, z:number, position: Position, orientation: Orientation, color: Color): CubePrimitive
 {
   return {
     color,
-    size: { x, y, z: 0.1 },
+    size: { x, y, z},
     pose: {
       position: {
         x: position.x,
         y: position.y,
-        // make the cube start at the ground level (z = 0)
-        z: position.z - 0.5 * dimensions.z,
+        z: position.z,
       },
       orientation,
     },
@@ -87,7 +85,7 @@ function convertDetectedObjects(msg: DetectedObjects): SceneUpdate
     const { pose_with_covariance } = kinematics;
     const { position, orientation } = pose_with_covariance.pose;
     const { dimensions } = shape;
-    const { x, y } = dimensions;
+    const { x, y, z } = dimensions;
 
     if (
       classification.length === 0 ||
@@ -100,10 +98,10 @@ function convertDetectedObjects(msg: DetectedObjects): SceneUpdate
     const { label } = classification[0];
     const color = colorMap[label as keyof typeof colorMap] ?? { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
 
-    const predictedObjectCube: CubePrimitive = createCubePrimitive(x, y, position, orientation, color, dimensions);
+    const predictedObjectCube: CubePrimitive = createCubePrimitive(x, y, z, position, orientation, color);
 
     acc.push(predictedObjectCube);
-    return acc;
+    return acc; 
   }, []);
 
   return createSceneUpdateMessage(header, [], cubePrimitives);
@@ -118,7 +116,7 @@ function convertTrackedObjects(msg: TrackedObjects): SceneUpdate
     const { pose_with_covariance } = kinematics;
     const { position, orientation } = pose_with_covariance.pose;
     const { dimensions } = shape;
-    const { x, y } = dimensions;
+    const { x, y, z } = dimensions;
 
     if (
       classification.length === 0 ||
@@ -129,9 +127,9 @@ function convertTrackedObjects(msg: TrackedObjects): SceneUpdate
     }
 
     const { label } = classification[0];
-    const color = colorMap[label as keyof typeof colorMap] ?? { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
+    const color = colorMap[label as keyof typeof colorMap] ?? { r: 1.0, g: 1.0, b: 1.0, a: 0.5 };
 
-    const predictedObjectCube: CubePrimitive = createCubePrimitive(x, y, position, orientation, color, dimensions);
+    const predictedObjectCube: CubePrimitive = createCubePrimitive(x, y, z, position, orientation, color);
 
     acc.push(predictedObjectCube);
     return acc;
@@ -160,7 +158,7 @@ function convertPredictedObjects(msg: PredictedObjects): SceneUpdate
       }
 
       const { label } = classification[0];
-      const color = colorMap[label as keyof typeof colorMap] ?? { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
+      const color = colorMap[label as keyof typeof colorMap] ?? { r: 1.0, g: 1.0, b: 1.0, a: 0.5 };
 
       // if the object is not unknown and has a predicted path, draw the path
       if (
@@ -187,7 +185,7 @@ function convertPredictedObjects(msg: PredictedObjects): SceneUpdate
     const { initial_pose_with_covariance } = kinematics;
     const { position, orientation } = initial_pose_with_covariance.pose;
     const { dimensions } = shape;
-    const { x, y } = dimensions;
+    const { x, y, z } = dimensions;
 
     if (
       classification.length === 0 ||
@@ -198,9 +196,9 @@ function convertPredictedObjects(msg: PredictedObjects): SceneUpdate
     }
 
     const { label } = classification[0];
-    const color = colorMap[label as keyof typeof colorMap] ?? { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
+    const color = colorMap[label as keyof typeof colorMap] ?? { r: 1.0, g: 1.0, b: 1.0, a: 0.5 };
 
-    const predictedObjectCube: CubePrimitive = createCubePrimitive(x, y, position, orientation, color, dimensions);
+    const predictedObjectCube: CubePrimitive = createCubePrimitive(x, y, z, position, orientation, color);
 
     acc.push(predictedObjectCube);
     return acc;

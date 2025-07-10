@@ -40,6 +40,8 @@
     "typescript": "5.3.2"
   },
   "dependencies": {
-    "@foxglove/schemas": "^1.6.2"
+    "@foxglove/extension": "^2.30.0",
+    "@foxglove/rosmsg": "^5.0.4",
+    "@foxglove/schemas": "^1.7.2"
   }
 }
